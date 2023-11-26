@@ -1,12 +1,15 @@
 import org.neo4j.driver.*;
+import org.neo4j.driver.Record;
+import org.neo4j.driver.types.Node;
 import static org.neo4j.driver.Values.parameters;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Scanner;
 
 public class Neo4jInterface {
 
-    private final Driver driver;
+    private final Driver driver; //necessary for writing transactions
 
     public Neo4jInterface(String uri, String user, String password) {
         this.driver = GraphDatabase.driver(uri, AuthTokens.basic(user, password));
@@ -17,9 +20,8 @@ public class Neo4jInterface {
     }
 
     /*
-     * takes in attributes of a person besides id such as name and birth
+     * addPersonNode: takes in attributes of a person besides id such as name and birth
      * it then creates a node on the neo4jAura database with those attributes.
-     * Utilizes neo4j java driver to do so
      */
     public void addPersonNode(String nodeName, int nodeBirth) {
         try (Session session = driver.session()) {
@@ -35,37 +37,74 @@ public class Neo4jInterface {
      * Currently returns a 2D array, reason for it being 2D is because if there are duplicates
      * it needs to show all duplicates.
      */
-    public List<List<String>> readNode(String nodeName) {
-    	try (var session = driver.session()) {
+    public List<Node> readNode(String nodeName) {
+    	try (Session session = driver.session()) {
             return session.executeRead(tx -> {
-                List<List<String>> Container = new ArrayList<List<String>>();
+                
+                List<Node> Nodes = new ArrayList<>();
                 
                 //query to find the node(s) and store it in result which is a VAR/iterator type
-                var result = tx.run("MATCH (node:Person {name: $name})  RETURN node"
+                Result result = tx.run("MATCH (node:Person {name: $name})  RETURN node"
                 		, parameters("name", nodeName));
                 
                 //iterate through result (although most of the time its just 1 item/node unless duplicate)
                 while (result.hasNext()) {
-                	var record = result.next(); //read the line
-                	var personNode = record.get("node").asNode(); //read the node
-                	ArrayList<String> user = new ArrayList<String>();
-                	String name = personNode.get("name").asString();
-        			String birth = personNode.get("born").toString();	
-                	user.add(name);
-                	user.add(birth);
-                	Container.add(user); //add our array of strings into the parent array
+                	Record record = result.next(); //read the line
+                	Nodes.add(record.get("node").asNode());
                 }
-                return Container;
+                return Nodes;
             });
         }
     }
+    
+    public void deleteNode(int nodeId) {
+        try (var session = driver.session()) {
+        	 String deleteRelationshipsQuery = "MATCH (n)-[r]-() WHERE ID(n) = $nodeId DELETE r";
+        	 session.run(deleteRelationshipsQuery, Values.parameters("nodeId", nodeId));
+            // Cypher query to delete a node by its ID
+            String query = "MATCH (n) WHERE ID(n) = $nodeId DELETE n";
 
+            // Execute the query with parameters
+            session.run(query, Values.parameters("nodeId", nodeId));
+        }
+    }
+    
+    /*
+     * getConnectionNodes: Given a node id input and a valid relationship type such as :ACTED_IN
+     * return all the nodes connected to the input node via the relationship
+     */
+    public List<Node> getConnectionNodes(int nodeId, String relationshipType) {
+        List<Node> connectionNodes = new ArrayList<>();
+
+        try (var session = driver.session()) {
+            // Cypher query to retrieve connection nodes via a specific relationship
+            String query = "MATCH (n)-[:" + relationshipType + "]->(connection) WHERE ID(n) = $nodeId RETURN connection";
+
+            // Execute the query with parameters
+            Result result = session.run(query, Values.parameters("nodeId", nodeId));
+
+            // Process the result and populate the list of connection nodes
+            while (result.hasNext()) {
+                Record record = result.next();
+                connectionNodes.add(record.get("connection").asNode());
+            }
+        }
+
+        return connectionNodes;
+    }
+
+    public void readNodesArray(List<Node> arr) {
+    	System.out.println("-------------------");
+    	for (Node node: arr) {
+    		for (String key: node.keys()) {
+    			Value value = node.get(key);
+                System.out.println(key + ": " + value);
+    		}
+    		System.out.println("-------------------");
+    	}
+    }
     public void createRelationship(String node1, String node2) {
     	//TODO CREATE THIS METHOD
-    }
-    public void readRelationship(String node1, String node2) {
-    	//TODO CREATE THIS METHOD
-    	//maybe make it possible to add multiple parameters not just 2
     }
 
     public static void main(String[] args) {
@@ -75,14 +114,25 @@ public class Neo4jInterface {
         String password = "2fh1nzRfutoS-MciN-I-PvoAWveiWPu66l-AOXCf8QM";
 
         Neo4jInterface neo4jInterface = new Neo4jInterface(uri, user, password);
-
-        // Example usage
-        //neo4jInterface.addPersonNode("Tom Cruise", 2002);
         
-        List<List<String>> res = new ArrayList<List<String>>();
-        res = neo4jInterface.readNode("Tom Cruise");
-        System.out.print(res);
-
+        Scanner scanner = new Scanner(System.in);
+        System.out.print("(1):readNode \n(2):AddPersonNode \n(3):GetConnectionNodes \n");
+        System.out.print("Choose a method: ");
+        int userInput = scanner.nextInt();
+        scanner.nextLine();
+        HelperMethods helper = new HelperMethods(); //helper methods for using input as arugments
+        switch (userInput) {
+	        case 1:
+	        	helper.readNodeHelper(scanner, neo4jInterface);
+	        	break;
+	        case 2: 
+	        	helper.addPersonHelper(scanner, neo4jInterface);
+	        	break;
+	        case 3:
+	        	helper.getConnectionHelper(scanner, neo4jInterface);
+	        	break;
+        }
+        scanner.close();
         neo4jInterface.close();
     }
 }
