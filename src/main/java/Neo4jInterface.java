@@ -103,8 +103,12 @@ public class Neo4jInterface {
     		System.out.println("-------------------");
     	}
     }
-    public void createRelationship(String node1, String node2) {
-    	//TODO CREATE THIS METHOD
+    public void createRelationship(int node1, int node2, String relationshipType) {
+    	try (Session session = driver.session()) {
+            String query = "MATCH (n1) WHERE ID(n1) = $node1 MATCH(n2) WHERE ID(n2) = $node2 CREATE (n1)-[:"+ relationshipType +"]->(n2)";
+            query = String.format(query);
+            session.run(query, Values.parameters("node1", node1, "node2", node2));  
+    	}
     }
 
     public static void main(String[] args) {
@@ -113,26 +117,42 @@ public class Neo4jInterface {
         String user = "neo4j";
         String password = "2fh1nzRfutoS-MciN-I-PvoAWveiWPu66l-AOXCf8QM";
 
+        boolean loop = true;
         Neo4jInterface neo4jInterface = new Neo4jInterface(uri, user, password);
         
         Scanner scanner = new Scanner(System.in);
-        System.out.print("(1):readNode \n(2):AddPersonNode \n(3):GetConnectionNodes \n");
-        System.out.print("Choose a method: ");
-        int userInput = scanner.nextInt();
-        scanner.nextLine();
-        HelperMethods helper = new HelperMethods(); //helper methods for using input as arugments
-        switch (userInput) {
-	        case 1:
-	        	helper.readNodeHelper(scanner, neo4jInterface);
-	        	break;
-	        case 2: 
-	        	helper.addPersonHelper(scanner, neo4jInterface);
-	        	break;
-	        case 3:
-	        	helper.getConnectionHelper(scanner, neo4jInterface);
-	        	break;
+        while(loop) {
+	        System.out.print("(1):Read Node \n(2):Add Person Node \n(3):Get Connection Nodes "
+	        		+ "\n(4):Create Relationship \n(5):Delete Node\n(6):Exit\n");
+	        System.out.print("Choose a method: ");
+	        int userInput = scanner.nextInt();
+	        scanner.nextLine();
+	        HelperMethods helper = new HelperMethods(); //helper methods for using input as arugments
+	        switch (userInput) {
+		        case 1:
+		        	helper.readNodeHelper(scanner, neo4jInterface);
+		        	break;
+		        case 2: 
+		        	helper.addPersonHelper(scanner, neo4jInterface);
+		        	break;
+		        case 3:
+		        	helper.getConnectionHelper(scanner, neo4jInterface);
+		        	break;
+		        case 4:
+		        	helper.createRelationshipHelper(scanner, neo4jInterface);
+		        	break;
+		        case 5:
+		        	helper.deleteNodeHelper(scanner, neo4jInterface);
+		        	break;
+		        default:
+		        	loop = false;
+		        	break;
+		        	
+		        	
+	        }
         }
         scanner.close();
         neo4jInterface.close();
     }
 }
+

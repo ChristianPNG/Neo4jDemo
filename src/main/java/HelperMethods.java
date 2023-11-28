@@ -35,4 +35,22 @@ public class HelperMethods {
 		return;
 		
 	}
+	public void createRelationshipHelper(Scanner scanner, Neo4jInterface neo4j) {
+		System.out.print("Enter node1 id: ");
+		int arg = scanner.nextInt();
+		scanner.nextLine();
+		System.out.print("Enter node2 id: ");
+		int arg2 = scanner.nextInt();
+		scanner.nextLine();
+		System.out.print("Enter relationship type: ");
+		String arg3 = scanner.nextLine();
+		neo4j.createRelationship(arg, arg2, arg3);
+	}
+	public void deleteNodeHelper(Scanner scanner, Neo4jInterface neo4j) {
+		System.out.print("Enter node1 id: ");
+		int arg = scanner.nextInt();
+		scanner.nextLine();
+		neo4j.deleteNode(arg);
+		System.out.print("Delete Node executed\n");
+	}
 }
